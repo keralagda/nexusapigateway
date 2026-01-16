@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PERSONA_PROMPT } from "../constants";
-import { OutputFormat } from "../types";
+import { OutputFormat, SimulatedRequest } from "../types";
 
 let genAI: GoogleGenAI | null = null;
 
@@ -16,13 +16,25 @@ const getGenAI = (): GoogleGenAI => {
 };
 
 export const processPayload = async (
-  input: string, 
+  request: SimulatedRequest, 
   modeContext: string,
   destination: string,
-  format: OutputFormat
+  format: OutputFormat,
+  processingRules: string // New parameter for user instructions
 ): Promise<string> => {
   try {
     const ai = getGenAI();
+    
+    // Construct the Request Envelope
+    const requestEnvelope = JSON.stringify({
+      virtual_network_context: {
+        method: request.method,
+        path: request.path,
+        headers: request.headers ? request.headers : "{}",
+        timestamp: new Date().toISOString()
+      },
+      payload_content: request.body
+    }, null, 2);
     
     const routingInstruction = destination 
       ? `[ROUTING TARGET]: Route processed data to: "${destination}"` 
@@ -34,16 +46,21 @@ export const processPayload = async (
       ? `[CURRENT OPERATION CONTEXT]: ${modeContext}` 
       : "";
 
+    const userRulesInstruction = processingRules
+      ? `[USER DEFINED TRANSFORMATION RULES]: The user has provided specific logic for this operation:\n"${processingRules}"\nFollow these rules strictly when processing the payload.`
+      : "";
+
     const fullSystemInstruction = `${SYSTEM_PERSONA_PROMPT}
     
     ${modeInstruction}
     ${routingInstruction}
     ${formatInstruction}
+    ${userRulesInstruction}
     `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview', 
-      contents: input,
+      contents: `ANALYZE THIS SIMULATED REQUEST:\n${requestEnvelope}`,
       config: {
         systemInstruction: fullSystemInstruction,
         temperature: 0.1, 

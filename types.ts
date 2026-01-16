@@ -11,6 +11,15 @@ export enum OutputFormat {
   N8N_WORKFLOW = 'N8N_WORKFLOW'
 }
 
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+
+export interface SimulatedRequest {
+  method: HttpMethod;
+  path: string;
+  headers: string; // Stored as string for editing
+  body: string;
+}
+
 export interface ProcessingResult {
   rawOutput: string;
   parsedJson?: any;
